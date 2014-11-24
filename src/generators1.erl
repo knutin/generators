@@ -1,4 +1,4 @@
--module(generators).
+-module(generators1).
 -include_lib("eunit/include/eunit.hrl").
 
 
@@ -53,6 +53,7 @@ from_ets(Table) ->
     from_ets(Table, [{'$1', [], ['$1']}], 10).
 
 from_ets(Table, MatchSpec, Limit) ->
+    %% Does this consume the entire table immediately?
     SelectGen = fun F(undefined) ->
                         case ets:select(Table, MatchSpec, Limit) of
                             {Matches, Cont} ->
@@ -150,4 +151,3 @@ from_fun_test() ->
                (Acc) -> {Acc, Acc+1}
            end,
     [0, 1, 2] = materialize(from_fun(AccF, 0)).
-                                             
