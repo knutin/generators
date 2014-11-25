@@ -4,7 +4,7 @@
 -endif.
 
 -export([from_fun/2, seq/2, from_list/1, chain/1, from_ets/1, from_ets/3]).
--export([map/2, pmap/2, pmap/3, filter/2]).
+-export([map/2, pmap/2, pmap/3, filter/2, filtermap/2]).
 -export([next/1, take/2, materialize/1]).
 
 
@@ -148,21 +148,26 @@ pmap(F, Gen, Opts) ->
 
 
 filter(F, Gen) ->
-    {Gen, fun Filter(G) ->
-                  case next(G) of
-                      {V, NewG} ->
-                          case F(V) of
-                              true  -> {V, NewG};
-                              false -> Filter(NewG)
-                          end;
-                      empty ->
-                          empty
-                  end
-             end}.
+    filtermap(F, Gen).
 
+filtermap(F, Gen) ->
+    Filter = fun Filter(G) ->
+                     case next(G) of
+                         {V, NewG} ->
+                             case F(V) of
+                                 true         -> {V, NewG};
+                                 {true, NewV} -> {NewV, NewG};
+                                 {false, _}   -> Filter(NewG);
+                                 false        -> Filter(NewG)
+                             end;
+                         empty ->
+                             empty
+                     end
+             end,
+    {Gen, Filter}.
 
 %%
-%% USER API
+%% CONSUMERS
 %%
 
 next({State, F}) ->
@@ -192,6 +197,7 @@ materialize(Gen) ->
             []
     end.
 
+
 %%
 %% TESTS
 %%
@@ -214,6 +220,9 @@ pmap_test() ->
 
 filter_test() ->
     [2, 4, 6] = materialize(filter(fun (I) -> I rem 2 =:= 0 end, seq(1, 7))).
+
+filtermap_test() ->
+    [4, 8, 12] = materialize(filter(fun (I) -> {I rem 2 =:= 0, I*2} end, seq(1, 7))).
 
 from_list_test() ->
     [1, 2, 3] = materialize(from_list([1, 2, 3])).
@@ -242,5 +251,6 @@ take_test() ->
     {[4, 5, 6], G1} = take(3, G0),
     {[], G1} = take(3, G1),
     empty = next(G1).
+
 
 -endif.
